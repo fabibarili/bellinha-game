@@ -1149,8 +1149,8 @@ setInterval(() => {
 }, 16);
 
 // tutorial do primeiro chute: a mãozinha ensina a arrastar para mirar e, depois que o jogador mira,
-// a seta aponta o botão de chutar; tudo some no primeiro chute
-let aimOn = !store.get('messi-tut-aim'), tipOn = !store.get('messi-tutorial'), tutDrag = 0;
+// a seta aponta o botão de chutar; tudo some no primeiro chute e volta toda vez que a página é aberta
+let aimOn = true, tipOn = true, tutDrag = 0;
 const tutOn = () => aimOn || tipOn;
 const HAND = ['...xx....', '...xx....', '...xx....', '...xxxx..', '...xxxxxx', '.x.xxxxxx',
   '.xxxxxxxx', '.xxxxxxxx', '..xxxxxxx', '..xxxxxx.', '...xxxxx.', '...xxxxx.'];
@@ -1166,11 +1166,10 @@ function showTut() {
   $('tip').classList.toggle('show', !aimOn && tipOn);
   if (!aimOn && tipOn) placeTip();
 }
-function aimDone() { if (!aimOn) return; aimOn = false; store.set('messi-tut-aim', 1); showTut(); }
+function aimDone() { if (!aimOn) return; aimOn = false; showTut(); }
 function kickDone() {
   if (!tutOn()) return;
-  aimOn = tipOn = false; S.shotT = S.time;
-  store.set('messi-tut-aim', 1); store.set('messi-tutorial', 1); showTut();
+  aimOn = tipOn = false; S.shotT = S.time; showTut();
 }
 function fit() { const w = $('wrap').clientWidth; $('wrap').style.fontSize = (w / 40) + 'px'; if (tipOn && !aimOn) placeTip(); }
 addEventListener('resize', fit);
