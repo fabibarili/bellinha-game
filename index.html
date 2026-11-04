@@ -29,6 +29,14 @@
   #tip.show{display:flex}
   #tip svg{width:3.6em;height:3.6em;shape-rendering:crispEdges;
     filter:drop-shadow(.18em 0 0 #000) drop-shadow(-.18em 0 0 #000) drop-shadow(0 .18em 0 #000) drop-shadow(0 -.18em 0 #000)}
+  /* dica de mira: mãozinha em pixel art deslizando de um lado para o outro */
+  #aimtip{position:absolute;left:50%;top:50%;z-index:5;display:none;flex-direction:column;align-items:center;gap:.7em;pointer-events:none;
+    color:#ffd84d;font-size:1.15em;white-space:nowrap;transform:translateX(-50%)}
+  #aimtip.show{display:flex}
+  #aimtip svg{width:3.2em;height:4.2em;shape-rendering:crispEdges;animation:swipe 1.6s ease-in-out infinite;
+    filter:drop-shadow(.18em 0 0 #000) drop-shadow(-.18em 0 0 #000) drop-shadow(0 .18em 0 #000) drop-shadow(0 -.18em 0 #000)}
+  @keyframes swipe{0%,100%{transform:translateX(-3.5em)}50%{transform:translateX(3.5em)}}
+  #wrap.tut-aim #hint{visibility:hidden}
   @keyframes bob{to{transform:translateX(-50%) translateY(.7em)}}
   #hint{position:absolute;left:0;right:0;top:6%;text-align:center;font-size:.85em;line-height:1.7;color:#fff;opacity:.95}
   .bottom{position:absolute;left:0;right:0;bottom:0;padding:0 4% 4%;display:flex;flex-direction:column;gap:.9em;
@@ -73,6 +81,7 @@
   <canvas id="c" width="180" height="320"></canvas>
   <div id="hud">
     <div id="hint"></div>
+    <div id="aimtip"><svg viewBox="0 0 9 12"></svg><span>◀ ARRASTE PARA MIRAR ▶</span></div>
     <div id="tip"><span>TOQUE E SEGURE!</span>
       <svg viewBox="0 0 9 9"><path fill="#ffd84d" d="M3 0h3v4h3v1h-1v1h-1v1h-1v1h-1v1h-1v-1h-1v-1h-1v-1h-1v-1h-1v-1h3z"/></svg></div>
     <div id="msg"></div>
@@ -868,8 +877,8 @@ function update(dt) {
   }
   if (S.state === 'aim' || S.state === 'power') {
     const w = S.time - S.shotT;
-    if (!tipOn && w - dt < STEAL_T - 2 && w >= STEAL_T - 2) SFX.farBark(); // latido ao longe: ela está chegando
-    if (w >= STEAL_T && !tipOn) startSteal(); // no primeiro chute, a Amora espera o jogador aprender
+    if (!tutOn() && w - dt < STEAL_T - 2 && w >= STEAL_T - 2) SFX.farBark(); // latido ao longe: ela está chegando
+    if (w >= STEAL_T && !tutOn()) startSteal(); // no primeiro chute, a Amora espera o jogador aprender
   }
   if (S.state === 'steal') updSteal(dt);
   if (S.state === 'flight' || S.state === 'result') stepBall(dt);
@@ -1091,6 +1100,8 @@ cv.addEventListener('pointermove', e => {
   const p = toCanvas(e), D = depth(0, 0) / F * 1.2;
   S.aim.x = clamp(S.aim.x + (p.x - drag.x) * D, -5, 5);
   S.aim.h = clamp(S.aim.h - (p.y - drag.y) * D, R, 3.4);
+  tutDrag += Math.abs(p.x - drag.x) + Math.abs(p.y - drag.y);
+  if (tutDrag > 15) aimDone();
   drag = p;
 });
 const endDrag = () => { drag = null; };
@@ -1106,7 +1117,7 @@ function pressKick() {
   if (S.state === 'result' && S.celebT < 0 && S.resT > 0.6) { newShot(); return; }
   if (S.state !== 'aim') return;
   S.state = 'power'; S.power = 0; S.pdir = 1;
-  if (tipOn) { tipOn = false; S.shotT = S.time; $('tip').classList.remove('show'); store.set('messi-tutorial', 1); }
+  kickDone();
   kickBtn.classList.add('hold'); kickBtn.textContent = 'SOLTE!';
   $('hint').innerHTML = 'SOLTE NA FORÇA CERTA!<br>VERDE = IDEAL';
 }
@@ -1130,24 +1141,43 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { if (e.code === 'Space') releaseKick(); keys[e.code] = false; });
 setInterval(() => {
   if (S.state !== 'aim' && S.state !== 'power') return;
+  if (keys.ArrowLeft || keys.ArrowRight || keys.ArrowUp || keys.ArrowDown) aimDone();
   if (keys.ArrowLeft) S.aim.x = clamp(S.aim.x - 0.08, -5, 5);
   if (keys.ArrowRight) S.aim.x = clamp(S.aim.x + 0.08, -5, 5);
   if (keys.ArrowUp) S.aim.h = clamp(S.aim.h + 0.06, R, 3.4);
   if (keys.ArrowDown) S.aim.h = clamp(S.aim.h - 0.06, R, 3.4);
 }, 16);
 
-// a seta fica logo acima do botão de chutar, só até o primeiro chute
-let tipOn = !store.get('messi-tutorial');
+// tutorial do primeiro chute: a mãozinha ensina a arrastar para mirar e, depois que o jogador mira,
+// a seta aponta o botão de chutar; tudo some no primeiro chute
+let aimOn = !store.get('messi-tut-aim'), tipOn = !store.get('messi-tutorial'), tutDrag = 0;
+const tutOn = () => aimOn || tipOn;
+const HAND = ['...xx....', '...xx....', '...xx....', '...xxxx..', '...xxxxxx', '.x.xxxxxx',
+  '.xxxxxxxx', '.xxxxxxxx', '..xxxxxxx', '..xxxxxx.', '...xxxxx.', '...xxxxx.'];
+$('aimtip').querySelector('svg').innerHTML = HAND.map((r, y) => [...r].map((c, x) =>
+  c === 'x' ? `<rect x="${x}" y="${y}" width="1" height="1" fill="#fff"/>` : '').join('')).join('');
 function placeTip() {
   const t = $('tip'), kr = kickBtn.getBoundingClientRect(), wr = $('wrap').getBoundingClientRect();
   t.style.top = (kr.top - wr.top - t.offsetHeight - 2) + 'px';
 }
-function fit() { const w = $('wrap').clientWidth; $('wrap').style.fontSize = (w / 40) + 'px'; if (tipOn) placeTip(); }
+function showTut() {
+  $('aimtip').classList.toggle('show', aimOn);
+  $('wrap').classList.toggle('tut-aim', aimOn);
+  $('tip').classList.toggle('show', !aimOn && tipOn);
+  if (!aimOn && tipOn) placeTip();
+}
+function aimDone() { if (!aimOn) return; aimOn = false; store.set('messi-tut-aim', 1); showTut(); }
+function kickDone() {
+  if (!tutOn()) return;
+  aimOn = tipOn = false; S.shotT = S.time;
+  store.set('messi-tut-aim', 1); store.set('messi-tutorial', 1); showTut();
+}
+function fit() { const w = $('wrap').clientWidth; $('wrap').style.fontSize = (w / 40) + 'px'; if (tipOn && !aimOn) placeTip(); }
 addEventListener('resize', fit);
 document.addEventListener('gesturestart', e => e.preventDefault());
 
-if (tipOn) $('tip').classList.add('show');
 fit();
+showTut();
 newShot();
 requestAnimationFrame(loop);
 })();
