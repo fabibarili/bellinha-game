@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0b0f1e">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Messi Cobrador</title>
+<title>Bellinha game</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
@@ -199,7 +199,24 @@ const MS = {
     '.....bbbbbb.....',
     '.....bbbbbb.....',
     '.....oo..oo.....',
-    '....kkk..kkk....']), MP, undefined, 2)
+    '....kkk..kkk....']), MP, undefined, 2),
+  // acenando para a Amora devolver a bola: braços em V para cima e depois abertos para os lados
+  waveA: mk([
+    '.ss...hhhh...ss.',
+    '..s..hhhhhh..s..',
+    '..s..hhhhhh..s..',
+    '...s.hhhhhh.s...',
+    '...s..hhhh..s...',
+    '....S..ss..S....',
+    '....SSSSSSSS....'].concat(mCeleb.slice(7).map(r => '..' + r + '..'), LEGS.stand.map(r => '..' + r + '..')), MP, undefined, 2),
+  waveB: mk([
+    '......hhhh......',
+    '.....hhhhhh.....',
+    '.....hhhhhh.....',
+    's....hhhhhh....s',
+    's.....hhhh.....s',
+    'ss.....ss.....ss',
+    'sssSSSSSSSSSSsss'].concat(mCeleb.slice(7).map(r => '..' + r + '..'), LEGS.stand.map(r => '..' + r + '..')), MP, undefined, 2)
 };
 
 // Goleiro
@@ -696,7 +713,7 @@ function result(type) {
 }
 
 // ---------- Amora rouba a bola se o Messi demorar ----------
-const STEAL_T = 5, AM_IN = 1.1, AM_GRAB = 0.35, AM_SPD = 3.8;
+const STEAL_T = 4, AM_IN = 1.1, AM_GRAB = 0.35, AM_SPD = 3.8;
 const amAt = (lat, fwd) => ({ x: B.x + cam.rx * lat + cam.fx * fwd, z: B.z + cam.rz * lat + cam.fz * fwd });
 // próximo destino: um ponto aleatório do gramado que caiba na tela, do outro lado de onde ela está
 function amoraTarget(A, side) {
@@ -919,7 +936,8 @@ function drawMessi() {
   const P = proj(mpos.x, 0, mpos.z);
   if (!P) return;
   const a = S.time - S.celebT, lift = S.celebT >= 0 && S.celebV === 1;
-  const frame = lift ? (a < LIFT0 ? 'kneel' : 'celeb') : S.frame;
+  const wave = S.state === 'steal' && S.amora.carry;
+  const frame = lift ? (a < LIFT0 ? 'kneel' : 'celeb') : wave ? (Math.floor(S.time / 0.22) & 1 ? 'waveB' : 'waveA') : S.frame;
   const hop = !lift ? (S.frame === 'celeb' ? celebHop(a) * 0.32 * P.s : 0) : a > LIFT1 ? Math.abs(Math.sin(a * 5)) * 0.06 * P.s : 0;
   const spr = MS[frame], sc = 0.064 * P.s;
   drawSpr(spr, P.x, P.y - hop, sc);
