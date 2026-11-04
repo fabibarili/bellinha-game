@@ -23,6 +23,13 @@
     transition:transform .25s cubic-bezier(.3,1.8,.5,1),opacity .2s;text-shadow:.12em .12em 0 #000,-.06em -.06em 0 #000}
   #msg.show{opacity:1;transform:scale(1)}
   #msg small{display:block;font-size:.32em;margin-top:.9em;color:#fff}
+  /* dica do primeiro chute: seta em pixel art balançando em cima do botão de chutar */
+  #tip{position:absolute;left:50%;z-index:5;display:none;flex-direction:column;align-items:center;gap:.5em;pointer-events:none;
+    color:#ffd84d;font-size:1.15em;transform:translateX(-50%);animation:bob .45s steps(2) infinite alternate}
+  #tip.show{display:flex}
+  #tip svg{width:3.6em;height:3.6em;shape-rendering:crispEdges;
+    filter:drop-shadow(.18em 0 0 #000) drop-shadow(-.18em 0 0 #000) drop-shadow(0 .18em 0 #000) drop-shadow(0 -.18em 0 #000)}
+  @keyframes bob{to{transform:translateX(-50%) translateY(.7em)}}
   #hint{position:absolute;left:0;right:0;top:6%;text-align:center;font-size:.85em;line-height:1.7;color:#fff;opacity:.95}
   .bottom{position:absolute;left:0;right:0;bottom:0;padding:0 4% 4%;display:flex;flex-direction:column;gap:.9em;
     background:linear-gradient(#0000,#000a 40%)}
@@ -66,6 +73,8 @@
   <canvas id="c" width="180" height="320"></canvas>
   <div id="hud">
     <div id="hint"></div>
+    <div id="tip"><span>TOQUE E SEGURE!</span>
+      <svg viewBox="0 0 9 9"><path fill="#ffd84d" d="M3 0h3v4h3v1h-1v1h-1v1h-1v1h-1v1h-1v-1h-1v-1h-1v-1h-1v-1h-1v-1h3z"/></svg></div>
     <div id="msg"></div>
     <div id="say"><span id="sayt">GOL PARA A BELLINHA!</span></div>
     <div class="bottom">
@@ -859,8 +868,8 @@ function update(dt) {
   }
   if (S.state === 'aim' || S.state === 'power') {
     const w = S.time - S.shotT;
-    if (w - dt < STEAL_T - 2 && w >= STEAL_T - 2) SFX.farBark(); // latido ao longe: ela está chegando
-    if (w >= STEAL_T) startSteal();
+    if (!tipOn && w - dt < STEAL_T - 2 && w >= STEAL_T - 2) SFX.farBark(); // latido ao longe: ela está chegando
+    if (w >= STEAL_T && !tipOn) startSteal(); // no primeiro chute, a Amora espera o jogador aprender
   }
   if (S.state === 'steal') updSteal(dt);
   if (S.state === 'flight' || S.state === 'result') stepBall(dt);
@@ -1097,6 +1106,7 @@ function pressKick() {
   if (S.state === 'result' && S.celebT < 0 && S.resT > 0.6) { newShot(); return; }
   if (S.state !== 'aim') return;
   S.state = 'power'; S.power = 0; S.pdir = 1;
+  if (tipOn) { tipOn = false; S.shotT = S.time; $('tip').classList.remove('show'); store.set('messi-tutorial', 1); }
   kickBtn.classList.add('hold'); kickBtn.textContent = 'SOLTE!';
   $('hint').innerHTML = 'SOLTE NA FORÇA CERTA!<br>VERDE = IDEAL';
 }
@@ -1126,10 +1136,17 @@ setInterval(() => {
   if (keys.ArrowDown) S.aim.h = clamp(S.aim.h - 0.06, R, 3.4);
 }, 16);
 
-function fit() { const w = $('wrap').clientWidth; $('wrap').style.fontSize = (w / 40) + 'px'; }
+// a seta fica logo acima do botão de chutar, só até o primeiro chute
+let tipOn = !store.get('messi-tutorial');
+function placeTip() {
+  const t = $('tip'), kr = kickBtn.getBoundingClientRect(), wr = $('wrap').getBoundingClientRect();
+  t.style.top = (kr.top - wr.top - t.offsetHeight - 2) + 'px';
+}
+function fit() { const w = $('wrap').clientWidth; $('wrap').style.fontSize = (w / 40) + 'px'; if (tipOn) placeTip(); }
 addEventListener('resize', fit);
 document.addEventListener('gesturestart', e => e.preventDefault());
 
+if (tipOn) $('tip').classList.add('show');
 fit();
 newShot();
 requestAnimationFrame(loop);
